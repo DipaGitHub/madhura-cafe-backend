@@ -8,6 +8,13 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // --- Middleware ---
+// Strip '/backend' prefix from the URL to support cPanel Passenger
+app.use((req, res, next) => {
+    if (req.url.startsWith('/backend')) {
+        req.url = req.url.substring(8); // Remove '/backend'
+    }
+    next();
+});
 app.use(cors());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
