@@ -1,6 +1,39 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Configure Multer for menu item images
+const UPLOAD_DIR = 'public/menu_items/';
+const ABSOLUTE_UPLOAD_DIR = path.join(__dirname, '..', UPLOAD_DIR);
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    if (!fs.existsSync(ABSOLUTE_UPLOAD_DIR)) {
+      fs.mkdirSync(ABSOLUTE_UPLOAD_DIR, { recursive: true });
+    }
+    cb(null, ABSOLUTE_UPLOAD_DIR);
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '_'));
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error('Only JPEG, PNG, GIF, and WebP image files are allowed.'));
+  }
+});
 
 // --- CATEGORIES ---
 
@@ -104,14 +137,44 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create menu item
-router.post('/', async (req, res) => {
-  const { id, category_id, title, short_description, benefit, price, image_url, ingredients, long_description, is_featured, is_popular } = req.body;
+router.post('/', upload.single('image'), async (req, res) => {
+  const { id, category_id, title, short_description, benefit, price, ingredients, long_description, is_featured, is_popular } = req.body;
+  let image_url = req.body.image_url || null;
+
+  if (req.file) {
+    image_url = `/${UPLOAD_DIR}${req.file.filename}`;
+  }
+
+  let parsedIngredients = ingredients;
+  if (typeof ingredients === 'string') {
+    try {
+      parsedIngredients = JSON.parse(ingredients);
+    } catch {
+      parsedIngredients = ingredients.split(',').map(i => i.trim()).filter(Boolean);
+    }
+  }
+
+  const isFeaturedVal = is_featured === true || is_featured === 'true' || is_featured === 1 || is_featured === '1' ? 1 : 0;
+  const isPopularVal = is_popular === true || is_popular === 'true' || is_popular === 1 || is_popular === '1' ? 1 : 0;
+
   try {
     const [result] = await pool.query(
       `INSERT INTO admin_menu_items 
        (id, category_id, title, short_description, benefit, price, image_url, ingredients, long_description, is_featured, is_popular) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, category_id, title, short_description, benefit, price, image_url, JSON.stringify(ingredients), long_description, is_featured ? 1 : 0, is_popular ? 1 : 0]
+      [
+        id,
+        category_id ? parseInt(category_id) : null,
+        title,
+        short_description || '',
+        benefit || '',
+        price || '',
+        image_url,
+        JSON.stringify(Array.isArray(parsedIngredients) ? parsedIngredients : []),
+        long_description || '',
+        isFeaturedVal,
+        isPopularVal
+      ]
     );
     res.json({ success: true, message: 'Menu item added successfully', id });
   } catch (err) {
@@ -120,16 +183,51 @@ router.post('/', async (req, res) => {
 });
 
 // Update menu item
-router.put('/:id', async (req, res) => {
+router.put('/:id', upload.single('image'), async (req, res) => {
   const { id } = req.params;
-  const { category_id, title, short_description, benefit, price, image_url, ingredients, long_description, is_featured, is_popular } = req.body;
+  const { category_id, title, short_description, benefit, price, ingredients, long_description, is_featured, is_popular } = req.body;
+  let image_url = req.body.image_url;
+
+  if (req.file) {
+    image_url = `/${UPLOAD_DIR}${req.file.filename}`;
+  }
+
+  let parsedIngredients = ingredients;
+  if (typeof ingredients === 'string') {
+    try {
+      parsedIngredients = JSON.parse(ingredients);
+    } catch {
+      parsedIngredients = ingredients.split(',').map(i => i.trim()).filter(Boolean);
+    }
+  }
+
+  const isFeaturedVal = is_featured === true || is_featured === 'true' || is_featured === 1 || is_featured === '1' ? 1 : 0;
+  const isPopularVal = is_popular === true || is_popular === 'true' || is_popular === 1 || is_popular === '1' ? 1 : 0;
+
   try {
-    await pool.query(
-      `UPDATE admin_menu_items 
-       SET category_id=?, title=?, short_description=?, benefit=?, price=?, image_url=?, ingredients=?, long_description=?, is_featured=?, is_popular=? 
-       WHERE id=?`,
-      [category_id, title, short_description, benefit, price, image_url, JSON.stringify(ingredients), long_description, is_featured ? 1 : 0, is_popular ? 1 : 0, id]
-    );
+    let updateQuery = `UPDATE admin_menu_items 
+       SET category_id=?, title=?, short_description=?, benefit=?, price=?, ingredients=?, long_description=?, is_featured=?, is_popular=?`;
+    const params = [
+      category_id ? parseInt(category_id) : null,
+      title,
+      short_description || '',
+      benefit || '',
+      price || '',
+      JSON.stringify(Array.isArray(parsedIngredients) ? parsedIngredients : []),
+      long_description || '',
+      isFeaturedVal,
+      isPopularVal
+    ];
+
+    if (image_url !== undefined) {
+      updateQuery += `, image_url=?`;
+      params.push(image_url);
+    }
+
+    updateQuery += ` WHERE id=?`;
+    params.push(id);
+
+    await pool.query(updateQuery, params);
     res.json({ success: true, message: 'Menu item updated successfully' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
