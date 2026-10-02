@@ -35,6 +35,36 @@ const upload = multer({
   }
 });
 
+// Configure Multer for category images
+const CATEGORY_UPLOAD_DIR = 'public/menu_categories/';
+const ABSOLUTE_CATEGORY_UPLOAD_DIR = path.join(__dirname, '..', CATEGORY_UPLOAD_DIR);
+
+const categoryStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    if (!fs.existsSync(ABSOLUTE_CATEGORY_UPLOAD_DIR)) {
+      fs.mkdirSync(ABSOLUTE_CATEGORY_UPLOAD_DIR, { recursive: true });
+    }
+    cb(null, ABSOLUTE_CATEGORY_UPLOAD_DIR);
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '_'));
+  }
+});
+
+const categoryUpload = multer({
+  storage: categoryStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error('Only JPEG, PNG, GIF, and WebP image files are allowed.'));
+  }
+});
+
 // --- CATEGORIES ---
 
 // Get all categories
@@ -48,12 +78,18 @@ router.get('/categories', async (req, res) => {
 });
 
 // Create category
-router.post('/categories', async (req, res) => {
-  const { name, description, sort_order, image_url } = req.body;
+router.post('/categories', categoryUpload.single('image'), async (req, res) => {
+  const { name, description, sort_order } = req.body;
+  let image_url = req.body.image_url || null;
+
+  if (req.file) {
+    image_url = `/${CATEGORY_UPLOAD_DIR}${req.file.filename}`;
+  }
+
   try {
     const [result] = await pool.query(
       'INSERT INTO admin_menu_categories (name, description, sort_order, image_url) VALUES (?, ?, ?, ?)',
-      [name, description, sort_order || 0, image_url || null]
+      [name, description, sort_order || 0, image_url]
     );
     res.json({ success: true, message: 'Category added successfully', id: result.insertId });
   } catch (err) {
@@ -62,14 +98,28 @@ router.post('/categories', async (req, res) => {
 });
 
 // Update category
-router.put('/categories/:id', async (req, res) => {
+router.put('/categories/:id', categoryUpload.single('image'), async (req, res) => {
   const { id } = req.params;
-  const { name, description, sort_order, image_url } = req.body;
+  const { name, description, sort_order } = req.body;
+  let image_url = req.body.image_url;
+
+  if (req.file) {
+    image_url = `/${CATEGORY_UPLOAD_DIR}${req.file.filename}`;
+  }
+
   try {
-    await pool.query(
-      'UPDATE admin_menu_categories SET name=?, description=?, sort_order=?, image_url=? WHERE id=?',
-      [name, description, sort_order, image_url || null, id]
-    );
+    let updateQuery = 'UPDATE admin_menu_categories SET name=?, description=?, sort_order=?';
+    const params = [name, description, sort_order || 0];
+
+    if (image_url !== undefined) {
+      updateQuery += ', image_url=?';
+      params.push(image_url);
+    }
+
+    updateQuery += ' WHERE id=?';
+    params.push(id);
+
+    await pool.query(updateQuery, params);
     res.json({ success: true, message: 'Category updated successfully' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
