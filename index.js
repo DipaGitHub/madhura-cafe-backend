@@ -40,6 +40,7 @@ app.use('/api/gallery', require('./routes/galleryRoutes'));
 app.use('/api/specialities', require('./routes/specialityRoutes'));
 app.use('/api/openingHours', require('./routes/openingHoursRoutes'));
 app.use('/api/contactInfo', require('./routes/contactInfoRoutes'));
+app.use('/api/founders', require('./routes/founderRoutes'));
 // --- Root Route / Health Check ---
 app.get('/', (req, res) => {
     res.status(200).json({

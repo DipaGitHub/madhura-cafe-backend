@@ -246,6 +246,21 @@ const initTables = async () => {
       )
     `);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS admin_founders (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        designation VARCHAR(255),
+        description TEXT,
+        image_url VARCHAR(255),
+        image_quote VARCHAR(255),
+        contact_info VARCHAR(255),
+        is_active BOOLEAN DEFAULT TRUE,
+        display_order INT DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     console.log('✅ MySQL tables for madhura-cafe verified and ready.');
   } catch (err) {
     console.error('Table init notice:', err.message);
