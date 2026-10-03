@@ -70,11 +70,18 @@ const initTables = async () => {
       CREATE TABLE IF NOT EXISTS admin_about_us (
         id INT AUTO_INCREMENT PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
+        short_description TEXT,
         description TEXT,
         image_url VARCHAR(255),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    
+    try {
+      await pool.query(`ALTER TABLE admin_about_us ADD COLUMN short_description TEXT`);
+    } catch (alterErr) {
+      // Column likely already exists — ignore
+    }
     await pool.query(`
       CREATE TABLE IF NOT EXISTS admin_testimonials (
         id INT AUTO_INCREMENT PRIMARY KEY,

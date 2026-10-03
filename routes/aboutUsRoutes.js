@@ -40,7 +40,7 @@ router.get('/', async (req, res) => {
 
 // 2. PUT Update About Us data
 router.put('/', upload.single('image'), async (req, res) => {
-    const { title, description } = req.body;
+    const { title, description, short_description } = req.body;
     let imageUrl = null;
 
     if (req.file) {
@@ -58,15 +58,15 @@ router.put('/', upload.single('image'), async (req, res) => {
         if (existing.length === 0) {
              // Create it if it doesn't exist
              await db.query(
-                 `INSERT INTO ${TABLE_NAME} (title, description, image_url) VALUES (?, ?, ?)`,
-                 [title, description, imageUrl || '']
+                 `INSERT INTO ${TABLE_NAME} (title, short_description, description, image_url) VALUES (?, ?, ?, ?)`,
+                 [title, short_description || '', description, imageUrl || '']
              );
         } else {
              // Update the existing record
              const finalImageUrl = imageUrl || existing[0].image_url;
              await db.query(
-                 `UPDATE ${TABLE_NAME} SET title = ?, description = ?, image_url = ? WHERE id = ?`,
-                 [title, description, finalImageUrl, existing[0].id]
+                 `UPDATE ${TABLE_NAME} SET title = ?, short_description = ?, description = ?, image_url = ? WHERE id = ?`,
+                 [title, short_description || existing[0].short_description, description, finalImageUrl, existing[0].id]
              );
         }
 
