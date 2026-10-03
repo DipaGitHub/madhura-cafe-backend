@@ -39,12 +39,17 @@ router.get('/', async (req, res) => {
 });
 
 // 2. PUT Update About Us data
-router.put('/', upload.single('image'), async (req, res) => {
+router.put('/', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'menu_pdf', maxCount: 1 }]), async (req, res) => {
     const { title, description, short_description } = req.body;
     let imageUrl = null;
+    let menuPdfUrl = null;
 
-    if (req.file) {
-        imageUrl = `/public/about_us/${req.file.filename}`;
+    if (req.files && req.files['image']) {
+        imageUrl = `/public/about_us/${req.files['image'][0].filename}`;
+    }
+    
+    if (req.files && req.files['menu_pdf']) {
+        menuPdfUrl = `/public/about_us/${req.files['menu_pdf'][0].filename}`;
     }
 
     if (!title || !description) {
@@ -58,15 +63,16 @@ router.put('/', upload.single('image'), async (req, res) => {
         if (existing.length === 0) {
              // Create it if it doesn't exist
              await db.query(
-                 `INSERT INTO ${TABLE_NAME} (title, short_description, description, image_url) VALUES (?, ?, ?, ?)`,
-                 [title, short_description || '', description, imageUrl || '']
+                 `INSERT INTO ${TABLE_NAME} (title, short_description, description, image_url, menu_pdf_url) VALUES (?, ?, ?, ?, ?)`,
+                 [title, short_description || '', description, imageUrl || '', menuPdfUrl || '']
              );
         } else {
              // Update the existing record
              const finalImageUrl = imageUrl || existing[0].image_url;
+             const finalMenuPdfUrl = menuPdfUrl || existing[0].menu_pdf_url;
              await db.query(
-                 `UPDATE ${TABLE_NAME} SET title = ?, short_description = ?, description = ?, image_url = ? WHERE id = ?`,
-                 [title, short_description || existing[0].short_description, description, finalImageUrl, existing[0].id]
+                 `UPDATE ${TABLE_NAME} SET title = ?, short_description = ?, description = ?, image_url = ?, menu_pdf_url = ? WHERE id = ?`,
+                 [title, short_description || existing[0].short_description, description, finalImageUrl, finalMenuPdfUrl, existing[0].id]
              );
         }
 

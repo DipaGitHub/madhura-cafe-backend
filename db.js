@@ -82,6 +82,13 @@ const initTables = async () => {
     } catch (alterErr) {
       // Column likely already exists — ignore
     }
+    
+    try {
+      await pool.query(`ALTER TABLE admin_about_us ADD COLUMN menu_pdf_url VARCHAR(255)`);
+    } catch (alterErr) {
+      // Column likely already exists — ignore
+    }
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS admin_testimonials (
         id INT AUTO_INCREMENT PRIMARY KEY,
