@@ -16,11 +16,12 @@ app.use((req, res, next) => {
     next();
 });
 app.use(cors());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+app.use(bodyParser.json({ limit: '50mb' }));
 
 // --- Routes ---
 app.use('/api/banners', require('./routes/bannerRoutes'));
+app.use('/api/page-banners', require('./routes/pageBannerRoutes'));
 app.use('/api/videos', require('./routes/videoRoutes'));
 app.use('/api/services', require('./routes/servicesRoutes'));
 app.use('/api/faqs', require('./routes/faqRoutes'));
@@ -41,6 +42,7 @@ app.use('/api/specialities', require('./routes/specialityRoutes'));
 app.use('/api/openingHours', require('./routes/openingHoursRoutes'));
 app.use('/api/contactInfo', require('./routes/contactInfoRoutes'));
 app.use('/api/founders', require('./routes/founderRoutes'));
+app.use('/api/inquiries', require('./routes/inquiryRoutes'));
 // --- Root Route / Health Check ---
 app.get('/', (req, res) => {
     res.status(200).json({
@@ -56,6 +58,27 @@ app.use('/public', express.static(path.join(__dirname, 'public')));
 // --- Fallback 404 ---
 app.use((req, res) => {
     res.status(404).send("Endpoint Not Found.");
+});
+
+// --- Global Error Handler (Multer & General Errors) ---
+app.use((err, req, res, next) => {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'File is too large. Maximum allowed size is 50MB.' 
+        });
+    }
+    if (err.message && err.message.includes('Only image files')) {
+        return res.status(400).json({ 
+            success: false, 
+            message: err.message 
+        });
+    }
+    console.error('Unhandled server error:', err);
+    res.status(500).json({ 
+        success: false, 
+        message: err.message || 'Internal Server Error' 
+    });
 });
 
 // Start the server

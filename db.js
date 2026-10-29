@@ -88,6 +88,12 @@ const initTables = async () => {
     } catch (alterErr) {
       // Column likely already exists — ignore
     }
+    
+    try {
+      await pool.query(`ALTER TABLE admin_about_us ADD COLUMN home_title VARCHAR(255)`);
+    } catch (alterErr) {
+      // Column likely already exists — ignore
+    }
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS admin_testimonials (
@@ -109,6 +115,15 @@ const initTables = async () => {
         qus TEXT NOT NULL,
         answers TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS admin_page_banners (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        page_title VARCHAR(255) NOT NULL UNIQUE,
+        image_url VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
     `);
     await pool.query(`
@@ -165,6 +180,12 @@ const initTables = async () => {
     `);
     try {
       await pool.query(`ALTER TABLE admin_menu_items ADD COLUMN is_popular BOOLEAN DEFAULT FALSE`);
+    } catch (alterErr) {
+      // Column likely already exists — ignore
+    }
+    
+    try {
+      await pool.query(`ALTER TABLE admin_menu_items ADD COLUMN sort_order INT DEFAULT 0`);
     } catch (alterErr) {
       // Column likely already exists — ignore
     }
@@ -271,6 +292,18 @@ const initTables = async () => {
         contact_info VARCHAR(255),
         is_active BOOLEAN DEFAULT TRUE,
         display_order INT DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS admin_inquiries (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        phone VARCHAR(50),
+        subject VARCHAR(255),
+        message TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);

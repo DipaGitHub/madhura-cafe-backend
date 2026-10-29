@@ -23,7 +23,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|webp/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -53,7 +53,7 @@ const categoryStorage = multer.diskStorage({
 
 const categoryUpload = multer({
   storage: categoryStorage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|webp/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -79,7 +79,10 @@ router.get('/categories', async (req, res) => {
 
 // Create category
 router.post('/categories', categoryUpload.single('image'), async (req, res) => {
-  const { name, description, sort_order } = req.body;
+  let { name, description, sort_order } = req.body;
+  if (description && !description.replace(/<[^>]*>/g, '').trim()) {
+    description = '';
+  }
   let image_url = req.body.image_url || null;
 
   if (req.file) {
@@ -100,7 +103,10 @@ router.post('/categories', categoryUpload.single('image'), async (req, res) => {
 // Update category
 router.put('/categories/:id', categoryUpload.single('image'), async (req, res) => {
   const { id } = req.params;
-  const { name, description, sort_order } = req.body;
+  let { name, description, sort_order } = req.body;
+  if (description && !description.replace(/<[^>]*>/g, '').trim()) {
+    description = '';
+  }
   let image_url = req.body.image_url;
 
   if (req.file) {
@@ -140,7 +146,7 @@ router.delete('/categories/:id', async (req, res) => {
 
 // Get all menu items
 router.get('/', async (req, res) => {
-  const { featured, popular, category } = req.query;
+  const { featured, popular, category, latest, limit } = req.query;
   try {
     let query = `
       SELECT i.*, c.name as category_name 
@@ -158,7 +164,19 @@ router.get('/', async (req, res) => {
       params.push(category);
     }
     
-    query += ' ORDER BY c.sort_order ASC, i.created_at DESC';
+    if (latest === 'true') {
+      query += ' ORDER BY i.created_at DESC';
+    } else {
+      query += ' ORDER BY i.sort_order ASC, c.sort_order ASC, i.created_at DESC';
+    }
+
+    if (limit) {
+      const limitNum = parseInt(limit, 10);
+      if (!isNaN(limitNum) && limitNum > 0) {
+        query += ' LIMIT ?';
+        params.push(limitNum);
+      }
+    }
 
     const [rows] = await pool.query(query, params);
     res.json({ success: true, data: rows });
@@ -227,6 +245,23 @@ router.post('/', upload.single('image'), async (req, res) => {
       ]
     );
     res.json({ success: true, message: 'Menu item added successfully', id });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Reorder menu items
+router.put('/reorder', async (req, res) => {
+  const { orderedIds } = req.body;
+  if (!Array.isArray(orderedIds)) {
+    return res.status(400).json({ success: false, message: 'orderedIds array required' });
+  }
+  try {
+    const queries = orderedIds.map((id, index) =>
+      pool.query('UPDATE admin_menu_items SET sort_order = ? WHERE id = ?', [index + 1, id])
+    );
+    await Promise.all(queries);
+    res.json({ success: true, message: 'Menu items reordered successfully' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

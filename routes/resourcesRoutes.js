@@ -28,7 +28,7 @@ const resourceStorage = multer.diskStorage({
 const upload = multer({
     storage: resourceStorage,
     limits: {
-        fileSize: 10 * 1024 * 1024 // 10MB limit for PDF resources
+        fileSize: 50 * 1024 * 1024 // 50MB limit for PDF resources
     },
     fileFilter: (req, file, cb) => {
         if (file.fieldname === 'resourceFile') {

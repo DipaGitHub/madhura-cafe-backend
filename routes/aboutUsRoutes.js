@@ -40,7 +40,7 @@ router.get('/', async (req, res) => {
 
 // 2. PUT Update About Us data
 router.put('/', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'menu_pdf', maxCount: 1 }]), async (req, res) => {
-    const { title, description, short_description } = req.body;
+    const { title, home_title, description, short_description } = req.body;
     let imageUrl = null;
     let menuPdfUrl = null;
 
@@ -63,16 +63,16 @@ router.put('/', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'menu_pdf
         if (existing.length === 0) {
              // Create it if it doesn't exist
              await db.query(
-                 `INSERT INTO ${TABLE_NAME} (title, short_description, description, image_url, menu_pdf_url) VALUES (?, ?, ?, ?, ?)`,
-                 [title, short_description || '', description, imageUrl || '', menuPdfUrl || '']
+                 `INSERT INTO ${TABLE_NAME} (title, home_title, short_description, description, image_url, menu_pdf_url) VALUES (?, ?, ?, ?, ?, ?)`,
+                 [title, home_title || '', short_description || '', description, imageUrl || '', menuPdfUrl || '']
              );
         } else {
              // Update the existing record
              const finalImageUrl = imageUrl || existing[0].image_url;
              const finalMenuPdfUrl = menuPdfUrl || existing[0].menu_pdf_url;
              await db.query(
-                 `UPDATE ${TABLE_NAME} SET title = ?, short_description = ?, description = ?, image_url = ?, menu_pdf_url = ? WHERE id = ?`,
-                 [title, short_description || existing[0].short_description, description, finalImageUrl, finalMenuPdfUrl, existing[0].id]
+                 `UPDATE ${TABLE_NAME} SET title = ?, home_title = ?, short_description = ?, description = ?, image_url = ?, menu_pdf_url = ? WHERE id = ?`,
+                 [title, home_title !== undefined ? home_title : (existing[0].home_title || ''), short_description || existing[0].short_description, description, finalImageUrl, finalMenuPdfUrl, existing[0].id]
              );
         }
 
